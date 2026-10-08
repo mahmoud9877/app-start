@@ -2,33 +2,27 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import * as bcrypt from 'bcryptjs';
 import { SignupDTO } from './validation/createUser.dto';
 import { LoginDTO } from './validation/login.dto';
-
-interface StoredUser {
-    email: string;
-    name: string;
-    passwordHash: string;
-}
+import { UserRepository } from './user.repository';
 
 @Injectable()
 export class AuthService {
-    private readonly users: StoredUser[] = [];
+    constructor(private readonly userRepository: UserRepository) { }
 
     async signup(dto: SignupDTO) {
-        if (this.users.some((user) => user.email === dto.email)) {
+        const existing = await this.userRepository.findByEmail(dto.email);
+        if (existing) {
             throw new ConflictException('email already registered');
         }
 
-        const passwordHash = await bcrypt.hash(dto.password, 10);
-        this.users.push({ email: dto.email, name: dto.name, passwordHash });
+        const password = await bcrypt.hash(dto.password, 10);
+        const user = await this.userRepository.create({ email: dto.email, name: dto.name, password });
 
-        return { email: dto.email, name: dto.name };
+        return { email: user.email, name: user.name };
     }
 
     async login(dto: LoginDTO) {
-        console.log('the users', this.users)
-        const user = this.users.find((u) => u.email === dto.email);
-        const passwordMatches = user && (await bcrypt.compare(dto.password, user.passwordHash));
-        console.log('user', user, passwordMatches)
+        const user = await this.userRepository.findByEmail(dto.email);
+        const passwordMatches = user && (await bcrypt.compare(dto.password, user.password));
 
         if (!passwordMatches) {
             throw new UnauthorizedException('invalid email or password');

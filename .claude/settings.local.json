@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json)"
+      "Bash(node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json)",
+      "Bash(npx tsc *)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.build.json 2>&1 | Select-Object -First 60)",
+      "PowerShell(& \"node_modules\\\\.bin\\\\tsc.cmd\" --noEmit -p tsconfig.build.json 2>&1 | Select-Object -First 80)",
+      "PowerShell(Get-Service *)"
     ]
   }
 }

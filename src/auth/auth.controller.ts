@@ -12,6 +12,11 @@ export class AuthController {
         return this.authService.signup(dto);
     }
 
+    @Post('/')
+    test(@Body()) {
+        return 'hi';
+    }
+
     @Post('/login')
     login(@Body() dto: LoginDTO) {
         return this.authService.login(dto);
