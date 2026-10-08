@@ -1,0 +1,2 @@
+// Owned by: src/modules/products
+// Cross-module references are plain ID fields (e.g. customerId String), not Prisma relations.

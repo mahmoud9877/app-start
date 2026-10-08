@@ -1,0 +1,12 @@
+// Generator and datasource only.
+// Models live in one file per module (users.prisma, sales.prisma, ...).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
