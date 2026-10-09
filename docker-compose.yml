@@ -1,17 +1,42 @@
 services:
+  # Production by default. In dev, docker-compose.override.yml switches this
+  # service to the `development` stage with the source mounted for hot reload.
+  # The central DB is migrated on container start; tenant DBs are migrated by
+  # provisioning (new tenants) and `npm run migrate:tenants` (existing ones).
   app:
-    build: .
+    build:
+      context: ./backend
+      target: production
     container_name: erp-app
     ports:
       - "3000:3000"
+    # Secrets and the super admin seed come from .env ...
+    env_file: .env
+    # ... but DB hosts must be the compose service name, not localhost.
     environment:
       PORT: 3000
-      DATABASE_URL: postgresql://erp:erp@postgres:5432/erp?schema=public
+      CENTRAL_DATABASE_URL: postgresql://erp:erp@postgres:5432/erp_central?schema=public
+      TENANT_DB_BASE_URL: postgresql://erp:erp@postgres:5432/postgres?schema=public&connection_limit=5
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
 
+  # React app. Production: nginx serves the build and proxies /api → app:3000.
+  web:
+    build:
+      context: ./frontend
+      target: production
+      args:
+        VITE_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-saas}
+    container_name: erp-web
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  # One Postgres for everything: erp_central plus one tenant_<slug> per company.
   postgres:
     image: postgres:17-alpine
     container_name: erp-postgres
@@ -20,15 +45,32 @@ services:
     environment:
       POSTGRES_USER: erp
       POSTGRES_PASSWORD: erp
-      POSTGRES_DB: erp
+      # Only applied when the volume is first initialised.
+      POSTGRES_DB: erp_central
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp_central"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
 
+  pgadmin:
+    image: dpage/pgadmin4:9.18
+    container_name: erp-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  pgadmin-data:

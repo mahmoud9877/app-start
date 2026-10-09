@@ -1,0 +1,33 @@
+# Dev overrides — loaded automatically by `docker compose up`.
+# For production, skip this file: `docker compose -f docker-compose.yml up`.
+services:
+  app:
+    build:
+      context: ./backend
+      target: development
+    # Same uid as the host user, so files written to the mounted project
+    # (dist/, generated/, new migrations) aren't owned by root.
+    user: node
+    environment:
+      NODE_ENV: development
+      # Scratch tenant DB for authoring tenant migrations (npm run migrate:tenant:dev).
+      TENANT_DATABASE_URL: postgresql://erp:erp@postgres:5432/tenant_dev?schema=public
+    volumes:
+      - ./backend:/app
+      # Keep the container's node_modules instead of the host's.
+      - /app/node_modules
+
+  web:
+    build:
+      context: ./frontend
+      target: development
+    user: node
+    ports: !override
+      - "5173:5173"
+    environment:
+      VITE_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-saas}
+      # Vite's dev proxy forwards /api here.
+      API_PROXY_TARGET: http://app:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

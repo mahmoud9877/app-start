@@ -1,0 +1,56 @@
+// Central (platform) database: the tenant registry and super admins.
+// Migrations: prisma/central/migrations — apply with `npm run migrate:central`.
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../generated/central"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CENTRAL_DATABASE_URL")
+}
+
+enum TenantStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+}
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  dbName    String       @unique @map("db_name")
+  status    TenantStatus @default(PROVISIONING)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  modules   TenantModule[]
+
+  @@map("tenants")
+}
+
+// Which optional modules (sales, inventory, ...) a tenant has paid for.
+// `module` is a key from TENANT_MODULES in src/tenancy/tenant-modules.ts.
+// Access ends when the row is removed or expiresAt passes (null = no expiry).
+// Either way the module's tables and data stay in the tenant database, so
+// renewing brings everything back.
+model TenantModule {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  module    String
+  enabledAt DateTime  @default(now()) @map("enabled_at")
+  expiresAt DateTime? @map("expires_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, module])
+  @@map("tenant_modules")
+}
+
+model SuperAdmin {
+  id       String @id @default(uuid()) @db.Uuid
+  email    String @unique
+  password String
+
+  @@map("super_admins")
+}

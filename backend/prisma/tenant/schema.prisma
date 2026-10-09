@@ -1,0 +1,28 @@
+// Schema shared by every tenant database (tenant_<slug>).
+// No company_id columns: isolation comes from each tenant having its own database.
+// Author migrations with `npm run migrate:tenant:dev` (against TENANT_DATABASE_URL),
+// then roll them out to every tenant with `npm run migrate:tenants`.
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../generated/tenant"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TENANT_DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String    @unique
+  name      String
+  password  String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("users")
+}
